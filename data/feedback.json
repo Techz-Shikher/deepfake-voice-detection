@@ -78,5 +78,15 @@
     "is_correct": null,
     "user_comment": "",
     "timestamp": "2026-03-02T13:35:52.899361"
+  },
+  {
+    "id": "2026-03-02T19:55:55.192202",
+    "file_name": null,
+    "predicted_label": null,
+    "actual_label": null,
+    "confidence": null,
+    "is_correct": null,
+    "user_comment": "",
+    "timestamp": "2026-03-02T19:55:55.192218"
   }
 ]
