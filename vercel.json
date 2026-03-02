@@ -5,7 +5,8 @@
       "src": "app.py",
       "use": "@vercel/python",
       "config": {
-        "requirementsFile": "requirements-prod.txt"
+        "requirementsFile": "requirements-prod.txt",
+        "maxLambdaSize": "50mb"
       }
     }
   ],
@@ -17,5 +18,6 @@
   ],
   "env": {
     "PYTHON_VERSION": "3.12"
-  }
+  },
+  "ignoreRawRepoRE": "^(models|data|train\\.py)"
 }

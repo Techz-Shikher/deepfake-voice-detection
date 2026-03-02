@@ -353,5 +353,15 @@ def internal_error(error):
 
 
 if __name__ == '__main__':
+    import os
+    from dotenv import load_dotenv
+    
+    load_dotenv()
+    
+    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    port = int(os.getenv('PORT', 5000))
+    
     logger.info("Starting Deepfake Voice Detection API...")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    logger.info(f"Debug mode: {debug_mode}, Port: {port}")
+    
+    app.run(debug=debug_mode, host='0.0.0.0', port=port)
