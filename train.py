@@ -34,9 +34,10 @@ logger = logging.getLogger(__name__)
 
 
 def extract_mfcc_stats(y, sr=22050, n_mfcc=40):
-    """Extract MFCC and statistical features."""
-    # Extract MFCC
+    """Extract comprehensive audio features for robust deepfake detection."""
+    # Extract MFCC and delta
     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
+    mfcc_delta = librosa.feature.delta(mfcc)
     
     # Statistics for MFCC
     mfcc_mean = mfcc.mean(axis=1)
@@ -44,16 +45,42 @@ def extract_mfcc_stats(y, sr=22050, n_mfcc=40):
     mfcc_min = mfcc.min(axis=1)
     mfcc_max = mfcc.max(axis=1)
     
-    # Zero-crossing rate
-    zcr = librosa.feature.zero_crossing_rate(y)[0].mean()
+    # MFCC delta statistics
+    mfcc_delta_mean = mfcc_delta.mean(axis=1)
+    mfcc_delta_std = mfcc_delta.std(axis=1)
     
-    # Energy
-    energy = np.mean(y ** 2)
+    # Spectral features
+    spec_centroid = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
+    spec_rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr)[0]
+    
+    # Zero-crossing rate
+    zcr = librosa.feature.zero_crossing_rate(y)[0]
+    
+    # Chroma features
+    chroma = librosa.feature.chroma_stft(y=y, sr=sr)
+    chroma_mean = chroma.mean(axis=1)
+    
+    # Tempogram
+    onset_env = librosa.onset.onset_strength(y=y, sr=sr)
     
     # Concatenate all features
     features = np.concatenate([
-        mfcc_mean, mfcc_std, mfcc_min, mfcc_max,
-        [zcr], [energy]
+        mfcc_mean,              # 40
+        mfcc_std,               # 40
+        mfcc_min,               # 40
+        mfcc_max,               # 40
+        mfcc_delta_mean,        # 40
+        mfcc_delta_std,         # 40
+        [spec_centroid.mean()], # 1
+        [spec_centroid.std()],  # 1
+        [spec_rolloff.mean()],  # 1
+        [spec_rolloff.std()],   # 1
+        [zcr.mean()],           # 1
+        [zcr.std()],            # 1
+        [np.mean(y ** 2)],      # 1 (energy)
+        chroma_mean,            # 12
+        [onset_env.mean()],     # 1
+        [onset_env.std()]       # 1
     ])
     
     return features
@@ -72,11 +99,34 @@ class ModelTrainer:
         self.model_output_path.parent.mkdir(parents=True, exist_ok=True)
     
     def load_data(self):
-        """Load audio files and extract features."""
-        logger.info("Loading audio data...")
+        """Load audio files and extract features with data augmentation."""
+        logger.info("Loading audio data with augmentation...")
         
         X = []
         y = []
+        
+        def augment_audio(audio, num_augmentations=2):
+            """Generate augmented versions of audio."""
+            augmented = [audio]
+            
+            for _ in range(num_augmentations):
+                # Time-stretching (slight speed variation)
+                rate = np.random.uniform(0.95, 1.05)
+                stretched = librosa.effects.time_stretch(audio, rate=rate)
+                augmented.append(stretched)
+                
+                # Pitch-shifting (slight frequency variation)
+                n_steps = np.random.randint(-2, 3)
+                if n_steps != 0:
+                    pitched = librosa.effects.pitch_shift(audio, sr=22050, n_steps=n_steps)
+                    augmented.append(pitched)
+                
+                # Adding noise
+                noise = np.random.normal(0, 0.001, len(audio))
+                noisy = audio + noise
+                augmented.append(noisy)
+            
+            return augmented
         
         # Load real voice samples (label=0)
         real_dir = self.data_dir / 'real'
@@ -96,10 +146,13 @@ class ModelTrainer:
                     if sr != 22050:
                         audio_data = librosa.resample(audio_data, orig_sr=sr, target_sr=22050)
                     
-                    # Extract features
-                    features = extract_mfcc_stats(audio_data, sr=22050)
-                    X.append(features)
-                    y.append(0)  # Real voice
+                    # Extract features from original and augmented versions
+                    augmented_audios = augment_audio(audio_data, num_augmentations=2)
+                    
+                    for aug_audio in augmented_audios:
+                        features = extract_mfcc_stats(aug_audio, sr=22050)
+                        X.append(features)
+                        y.append(0)  # Real voice
                     
                     if i % 5 == 0:
                         logger.info(f"  Processed {i}/{len(real_files)} real samples...")
@@ -125,10 +178,13 @@ class ModelTrainer:
                     if sr != 22050:
                         audio_data = librosa.resample(audio_data, orig_sr=sr, target_sr=22050)
                     
-                    # Extract features
-                    features = extract_mfcc_stats(audio_data, sr=22050)
-                    X.append(features)
-                    y.append(1)  # Deepfake
+                    # Extract features from original and augmented versions
+                    augmented_audios = augment_audio(audio_data, num_augmentations=2)
+                    
+                    for aug_audio in augmented_audios:
+                        features = extract_mfcc_stats(aug_audio, sr=22050)
+                        X.append(features)
+                        y.append(1)  # Deepfake
                     
                     if i % 5 == 0:
                         logger.info(f"  Processed {i}/{len(fake_files)} fake samples...")
@@ -139,7 +195,7 @@ class ModelTrainer:
         X = np.array(X)
         y = np.array(y)
         
-        logger.info(f"✓ Loaded {len(X)} samples with {X.shape[1]} features each")
+        logger.info(f"✓ Loaded {len(X)} samples (original + augmented) with {X.shape[1]} features each")
         logger.info(f"  Class distribution: Real={np.sum(y==0)}, Deepfake={np.sum(y==1)}")
         
         return X, y
@@ -156,12 +212,14 @@ class ModelTrainer:
         logger.info(f"Train set: {len(X_train)} samples")
         logger.info(f"Test set: {len(X_test)} samples")
         
-        # Create and train model
+        # Create and train model with improved parameters
         self.model = GradientBoostingClassifier(
-            n_estimators=100,
-            learning_rate=0.1,
-            max_depth=5,
-            min_samples_split=2,
+            n_estimators=200,          # More estimators for better fit
+            learning_rate=0.05,        # Lower learning rate for stability
+            max_depth=4,               # Shallower trees to prevent overfitting
+            min_samples_split=5,       # Require more samples per split
+            min_samples_leaf=2,        # Require minimum samples in leaf nodes
+            subsample=0.8,             # Stochastic gradient boosting
             random_state=42,
             verbose=1
         )

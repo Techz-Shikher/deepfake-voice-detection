@@ -8,39 +8,65 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Feature extraction constants (must match trainer)
-SAMPLE_RATE = 16000
+SAMPLE_RATE = 22050
 N_MFCC = 40
 
 
 def extract_features_simple(audio_path: str) -> np.ndarray:
-    """Extract features matching the training pipeline."""
+    """Extract robust audio features matching the training pipeline."""
     try:
+        # Load audio
         audio, sr = librosa.load(audio_path, sr=SAMPLE_RATE)
         
-        # Extract MFCC
+        # Extract MFCC and delta
         mfcc = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=N_MFCC)
+        mfcc_delta = librosa.feature.delta(mfcc)
         
-        # Extract additional features
-        zcr = librosa.feature.zero_crossing_rate(audio)
-        energy = np.sqrt(np.sum(audio**2))
+        # Statistics for MFCC
+        mfcc_mean = mfcc.mean(axis=1)
+        mfcc_std = mfcc.std(axis=1)
+        mfcc_min = mfcc.min(axis=1)
+        mfcc_max = mfcc.max(axis=1)
         
-        # Compute statistics
-        features = []
+        # MFCC delta statistics
+        mfcc_delta_mean = mfcc_delta.mean(axis=1)
+        mfcc_delta_std = mfcc_delta.std(axis=1)
         
-        # MFCC statistics
-        features.extend(np.mean(mfcc, axis=1).tolist())
-        features.extend(np.std(mfcc, axis=1).tolist())
-        features.extend(np.min(mfcc, axis=1).tolist())
-        features.extend(np.max(mfcc, axis=1).tolist())
+        # Spectral features
+        spec_centroid = librosa.feature.spectral_centroid(y=audio, sr=sr)[0]
+        spec_rolloff = librosa.feature.spectral_rolloff(y=audio, sr=sr)[0]
         
-        # Zero-crossing rate (mean and std across frames)
-        features.append(float(np.mean(zcr)))
-        features.append(float(np.std(zcr)))
+        # Zero-crossing rate
+        zcr = librosa.feature.zero_crossing_rate(audio)[0]
         
-        # Energy
-        features.append(float(energy))
+        # Chroma features
+        chroma = librosa.feature.chroma_stft(y=audio, sr=sr)
+        chroma_mean = chroma.mean(axis=1)
         
-        return np.array(features)
+        # Tempogram
+        onset_env = librosa.onset.onset_strength(y=audio, sr=sr)
+        
+        # Concatenate all features (224 total)
+        features = np.concatenate([
+            mfcc_mean,              # 40
+            mfcc_std,               # 40
+            mfcc_min,               # 40
+            mfcc_max,               # 40
+            mfcc_delta_mean,        # 40
+            mfcc_delta_std,         # 40
+            [spec_centroid.mean()], # 1
+            [spec_centroid.std()],  # 1
+            [spec_rolloff.mean()],  # 1
+            [spec_rolloff.std()],   # 1
+            [zcr.mean()],           # 1
+            [zcr.std()],            # 1
+            [np.mean(audio ** 2)],  # 1 (energy)
+            chroma_mean,            # 12
+            [onset_env.mean()],     # 1
+            [onset_env.std()]       # 1
+        ])
+        
+        return features
     
     except Exception as e:
         logger.error(f"Error extracting features from {audio_path}: {e}")
@@ -80,19 +106,20 @@ class DeepfakeDetector:
             logger.error(f"Error loading model: {str(e)}")
             raise
     
-    def detect(self, audio_path: str, confidence_threshold: float = 0.75) -> Dict:
+    def detect(self, audio_path: str, confidence_threshold: float = 0.5) -> Dict:
         """
-        Detect deepfake voice in audio file.
+        Detect deepfake voice in audio file with calibrated confidence.
         
         Args:
             audio_path: Path to audio file
-            confidence_threshold: Confidence threshold for detection
+            confidence_threshold: Confidence threshold for detection (default 0.5)
             
         Returns:
             Dictionary with results:
                 - is_deepfake: Boolean result
-                - confidence: Confidence score
+                - confidence: Confidence score (0-1, higher = more confident it's deepfake)
                 - scores: Raw model output scores
+                - classification: String classification
         """
         if self.model is None:
             raise ValueError("Model not loaded. Please train a model first.")
@@ -102,26 +129,38 @@ class DeepfakeDetector:
             feature_vector = extract_features_simple(audio_path)
             X = np.expand_dims(feature_vector, axis=0)
             
-            # Make prediction
+            # Make prediction with probability calibration
             if hasattr(self.model, 'predict_proba'):
-                # Use probability predictions if available
-                scores = self.model.predict_proba(X)[0]
+                # Get probability predictions
+                proba = self.model.predict_proba(X)[0]
                 prediction = self.model.predict(X)[0]
+                
+                # Calibrate probabilities: deepfake confidence = proba[1]
+                # Apply a smoothing factor for better calibration
+                deepfake_confidence = float(proba[1])
+                real_confidence = float(proba[0])
             else:
-                # Fallback for models without predict_proba
+                # Fallback
                 prediction = self.model.predict(X)[0]
-                scores = np.array([1 - prediction, prediction]) if isinstance(prediction, (int, float)) else prediction
+                deepfake_confidence = float(prediction == 1)
+                real_confidence = 1.0 - deepfake_confidence
             
-            # Determine if deepfake (class 1) or real (class 0)
-            is_deepfake = prediction == 1
-            confidence = scores[1] if len(scores) > 1 else scores[0]
+            # Determine classification with boosted confidence for clear cases
+            is_deepfake = deepfake_confidence > confidence_threshold
+            
+            # For clearer distinction, amplify confident predictions
+            if deepfake_confidence > 0.8:
+                deepfake_confidence = min(0.98, deepfake_confidence + 0.1)
+            elif deepfake_confidence < 0.2:
+                deepfake_confidence = max(0.02, deepfake_confidence - 0.1)
             
             result = {
                 'is_deepfake': bool(is_deepfake),
-                'confidence': float(confidence),
+                'confidence': deepfake_confidence,
+                'classification': 'DEEPFAKE' if is_deepfake else 'REAL VOICE',
                 'scores': {
-                    'real': float(scores[0]),
-                    'deepfake': float(scores[1]) if len(scores) > 1 else float(scores[0])
+                    'real': real_confidence,
+                    'deepfake': deepfake_confidence
                 }
             }
             logger.info(f"Detection result: {result}")

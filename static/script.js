@@ -1,469 +1,243 @@
-// API Base URL
-const API_BASE = '/api';
-
 // DOM Elements
 const uploadArea = document.getElementById('uploadArea');
 const fileInput = document.getElementById('fileInput');
-const fileList = document.getElementById('fileList');
-const selectedFiles = document.getElementById('selectedFiles');
+const fileInfo = document.getElementById('fileInfo');
+const fileName = document.getElementById('fileName');
+const fileSize = document.getElementById('fileSize');
+const removeFileBtn = document.getElementById('removeFileBtn');
 const analyzeBtn = document.getElementById('analyzeBtn');
-const clearBtn = document.getElementById('clearBtn');
-const analyzeProgress = document.getElementById('analyzeProgress');
-const progressFill = document.getElementById('progressFill');
-const progressText = document.getElementById('progressText');
 const resultsSection = document.getElementById('resultsSection');
-const resultsList = document.getElementById('resultsList');
-const singleFile = document.getElementById('singleFile');
-const analyzeBtn2 = document.getElementById('analyzeBtn2');
-const analysisResult = document.getElementById('analysisResult');
-const statusDot = document.getElementById('status-dot');
-const statusText = document.getElementById('status-text');
+const analyzeAgainBtn = document.getElementById('analyzeAgainBtn');
 
-// Store selected files
-let selectedFilesArray = [];
-let currentResult = null;
-let actualLabel = null;
+// Results Elements
+const classificationBadge = document.getElementById('classificationBadge');
+const classificationText = document.getElementById('classificationText');
+const resultConfidence = document.getElementById('resultConfidence');
+const realBar = document.getElementById('realBar');
+const deepfakeBar = document.getElementById('deepfakeBar');
+const realScore = document.getElementById('realScore');
+const deepfakeScore = document.getElementById('deepfakeScore');
+const deepfakeProb = document.getElementById('deepfakeProb');
+const realProb = document.getElementById('realProb');
+const detectionResult = document.getElementById('detectionResult');
+const timestamp = document.getElementById('timestamp');
+const correctBtn = document.getElementById('correctBtn');
+const incorrectBtn = document.getElementById('incorrectBtn');
+const feedbackMessage = document.getElementById('feedbackMessage');
+
+let selectedFile = null;
 
 // Initialize
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
-    checkApiStatus();
-    loadSystemInfo();
+    checkSystemStatus();
 });
 
-// Setup Event Listeners
+// Event Listeners
 function setupEventListeners() {
-    // Drag and drop
+    // Upload Area
     uploadArea.addEventListener('click', () => fileInput.click());
-    uploadArea.addEventListener('dragover', handleDragOver);
-    uploadArea.addEventListener('dragleave', handleDragLeave);
-    uploadArea.addEventListener('drop', handleDrop);
-    
-    // File input
-    fileInput.addEventListener('change', handleFileSelect);
-    
-    // Buttons
-    analyzeBtn.addEventListener('click', analyzeMultipleFiles);
-    clearBtn.addEventListener('click', clearFiles);
-    analyzeBtn2.addEventListener('click', analyzeSingleFile);
-    
-    // Single file input
-    singleFile.addEventListener('change', () => {
-        if (singleFile.files.length > 0) {
-            analyzeBtn2.disabled = false;
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.style.backgroundColor = 'rgba(99, 102, 241, 0.2)';
+    });
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.style.backgroundColor = '';
+    });
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.style.backgroundColor = '';
+        if (e.dataTransfer.files.length > 0) {
+            handleFileSelect(e.dataTransfer.files[0]);
         }
     });
-}
 
-// Drag and Drop Handlers
-function handleDragOver(e) {
-    e.preventDefault();
-    uploadArea.classList.add('dragover');
-}
+    // File Input
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0]);
+        }
+    });
 
-function handleDragLeave(e) {
-    e.preventDefault();
-    uploadArea.classList.remove('dragover');
-}
-
-function handleDrop(e) {
-    e.preventDefault();
-    uploadArea.classList.remove('dragover');
-    const files = e.dataTransfer.files;
-    addFiles(files);
+    // Buttons
+    removeFileBtn.addEventListener('click', removeFile);
+    analyzeBtn.addEventListener('click', analyzeFile);
+    analyzeAgainBtn.addEventListener('click', resetUI);
+    correctBtn.addEventListener('click', () => submitFeedback(true));
+    incorrectBtn.addEventListener('click', () => submitFeedback(false));
 }
 
 // File Selection
-function handleFileSelect(e) {
-    const files = e.target.files;
-    addFiles(files);
-}
-
-function addFiles(files) {
-    for (let file of files) {
-        if (isValidAudioFile(file)) {
-            selectedFilesArray.push(file);
-        }
-    }
-    updateFileList();
-}
-
-function isValidAudioFile(file) {
-    const validTypes = ['audio/wav', 'audio/mpeg', 'audio/flac', 'audio/ogg', 'audio/mp3'];
-    const validExtensions = ['.wav', '.mp3', '.flac', '.ogg'];
-    const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-    
-    return validTypes.some(type => file.type.includes(type)) || 
-           validExtensions.includes(fileExt);
-}
-
-function updateFileList() {
-    if (selectedFilesArray.length === 0) {
-        fileList.style.display = 'none';
-        uploadArea.style.display = 'block';
+function handleFileSelect(file) {
+    // Validate file
+    const allowedTypes = ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/flac', 'audio/ogg', 'audio/x-wav'];
+    if (!allowedTypes.some(type => file.type.includes(type)) && !file.name.match(/\.(wav|mp3|flac|ogg)$/i)) {
+        alert('Please select a valid audio file (WAV, MP3, FLAC, or OGG)');
         return;
     }
+
+    if (file.size > 50 * 1024 * 1024) {
+        alert('File size must be less than 50MB');
+        return;
+    }
+
+    selectedFile = file;
+    displayFileInfo(file);
+}
+
+function displayFileInfo(file) {
+    fileName.textContent = file.name;
+    fileSize.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
     
     uploadArea.style.display = 'none';
-    fileList.style.display = 'block';
-    
-    selectedFiles.innerHTML = '';
-    selectedFilesArray.forEach((file, index) => {
-        const li = document.createElement('li');
-        li.innerHTML = `
-            <span class="file-name">📄 ${file.name}</span>
-            <span class="file-size">${formatFileSize(file.size)}</span>
-            <button class="remove-btn" onclick="removeFile(${index})">✕</button>
-        `;
-        selectedFiles.appendChild(li);
-    });
+    fileInfo.style.display = 'block';
 }
 
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
-}
-
-function removeFile(index) {
-    selectedFilesArray.splice(index, 1);
-    updateFileList();
-}
-
-function clearFiles() {
-    selectedFilesArray = [];
+function removeFile() {
+    selectedFile = null;
+    uploadArea.style.display = 'block';
+    fileInfo.style.display = 'none';
     fileInput.value = '';
-    updateFileList();
-    resultsSection.style.display = 'none';
 }
 
-// Analyze Multiple Files
-async function analyzeMultipleFiles() {
-    if (selectedFilesArray.length === 0) {
-        showError('Please select files to analyze');
+// File Analysis
+async function analyzeFile() {
+    if (!selectedFile) {
+        alert('Please select a file first');
         return;
     }
-    
+
     analyzeBtn.disabled = true;
-    analyzeProgress.style.display = 'block';
-    resultsSection.style.display = 'block';
-    resultsList.innerHTML = '';
-    
-    const formData = new FormData();
-    selectedFilesArray.forEach(file => {
-        formData.append('files', file);
-    });
-    
+    analyzeBtn.innerHTML = '<span class="loading">⏳</span> Analyzing...';
+
     try {
-        const response = await fetch('/detect-batch', {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!response.ok) {
-            throw new Error('Batch detection failed');
-        }
-        
-        const data = await response.json();
-        displayBatchResults(data);
-        
-    } catch (error) {
-        showError('Analysis failed: ' + error.message);
-    } finally {
-        analyzeBtn.disabled = false;
-        analyzeProgress.style.display = 'none';
-    }
-}
+        const formData = new FormData();
+        formData.append('file', selectedFile);
 
-function displayBatchResults(data) {
-    const results = data.results || [];
-    let deepfakesCount = 0;
-    let realCount = 0;
-    
-    results.forEach((result, index) => {
-        const resultData = result.result;
-        
-        if (resultData) {
-            const isDeepfake = resultData.is_deepfake;
-            const confidence = (resultData.confidence * 100).toFixed(2);
-            
-            if (isDeepfake) deepfakesCount++;
-            else realCount++;
-            
-            const resultCard = document.createElement('div');
-            resultCard.className = `result-card ${isDeepfake ? 'deepfake' : 'real'}`;
-            
-            resultCard.innerHTML = `
-                <div class="result-status">
-                    <span class="result-status-icon">${isDeepfake ? '⚠️' : '✅'}</span>
-                    <span>${isDeepfake ? 'DEEPFAKE' : 'REAL'}</span>
-                </div>
-                <div class="result-confidence">
-                    <div class="confidence-bar-small">
-                        <div class="confidence-fill-small" style="width: ${confidence}%"></div>
-                    </div>
-                    <span>${confidence}%</span>
-                </div>
-                <div class="result-file">${result.file || `File ${index + 1}`}</div>
-            `;
-            
-            resultsList.appendChild(resultCard);
-        }
-    });
-    
-    updateSummaryStats(results.length, deepfakesCount, realCount);
-}
-
-function updateSummaryStats(total, deepfakes, real) {
-    document.getElementById('totalFiles').textContent = total;
-    document.getElementById('deepfakesDetected').textContent = deepfakes;
-    document.getElementById('realAudio').textContent = real;
-}
-
-// Analyze Single File
-async function analyzeSingleFile() {
-    if (!singleFile.files || singleFile.files.length === 0) {
-        showError('Please select a file');
-        return;
-    }
-    
-    const file = singleFile.files[0];
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    analyzeBtn2.disabled = true;
-    analyzeBtn2.innerHTML = '<span class="spinner"></span> Analyzing...';
-    
-    try {
         const response = await fetch('/detect', {
             method: 'POST',
             body: formData
         });
-        
+
         if (!response.ok) {
-            throw new Error('Detection failed');
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
-        const data = await response.json();
-        displayAnalysisResult(data, file.name);
-        
+
+        const result = await response.json();
+        displayResults(result);
+        resultsSection.style.display = 'block';
+        resultsSection.scrollIntoView({ behavior: 'smooth' });
     } catch (error) {
-        showError('Analysis failed: ' + error.message);
+        console.error('Error:', error);
+        alert('Analysis failed. Please try again.');
     } finally {
-        analyzeBtn2.disabled = false;
-        analyzeBtn2.innerHTML = 'Analyze';
+        analyzeBtn.disabled = false;
+        analyzeBtn.innerHTML = '🔍 Analyze Audio';
     }
 }
 
-function displayAnalysisResult(data, fileName) {
-    const isDeepfake = data.is_deepfake;
-    const confidence = (data.confidence * 100).toFixed(2);
-    const scores = data.scores;
+// Display Results
+function displayResults(result) {
+    const isDeepfake = result.is_deepfake;
+    const deepfakeConfidence = result.confidence;
+    const realConfidence = result.scores.real;
+
+    // Update classification badge
+    classificationBadge.textContent = isDeepfake ? '⚠️' : '✓';
+    classificationText.textContent = isDeepfake ? 'DEEPFAKE' : 'REAL VOICE';
+    classificationText.className = `classification-text ${isDeepfake ? 'deepfake' : 'real'}`;
+
+    // Update confidence display
+    resultConfidence.textContent = `${(deepfakeConfidence * 100).toFixed(1)}%`;
+
+    // Update progress bars
+    const realPercent = (realConfidence * 100).toFixed(0);
+    const deepfakePercent = (deepfakeConfidence * 100).toFixed(0);
+
+    realBar.style.width = `${realPercent}%`;
+    deepfakeBar.style.width = `${deepfakePercent}%`;
+
+    realScore.textContent = `${realPercent}%`;
+    deepfakeScore.textContent = `${deepfakePercent}%`;
+
+    // Update detailed metrics
+    deepfakeProb.textContent = `${(deepfakeConfidence * 100).toFixed(2)}%`;
+    realProb.textContent = `${(realConfidence * 100).toFixed(2)}%`;
+    detectionResult.textContent = isDeepfake ? 'DEEPFAKE DETECTED' : 'REAL VOICE DETECTED';
     
-    const resultIcon = document.getElementById('resultIcon');
-    const confidenceFill = document.getElementById('confidenceFill');
-    
-    // Update visualization
-    resultIcon.textContent = isDeepfake ? '⚠️ DEEPFAKE' : '✅ REAL';
-    resultIcon.style.color = isDeepfake ? '#ef4444' : '#10b981';
-    
-    confidenceFill.style.width = confidence + '%';
-    if (isDeepfake) {
-        confidenceFill.classList.add('deepfake');
-    } else {
-        confidenceFill.classList.remove('deepfake');
-    }
-    
-    // Update details
-    document.getElementById('classification').textContent = isDeepfake ? 'DEEPFAKE' : 'REAL VOICE';
-    document.getElementById('confidence').textContent = confidence + '%';
-    document.getElementById('fileName').textContent = fileName;
-    document.getElementById('confidenceText').textContent = 
-        `Confidence: ${scores.deepfake.toFixed(4)} (Deepfake) vs ${scores.real.toFixed(4)} (Real)`;
-    
-    // Store current result for verification
-    currentResult = {
-        fileName: fileName,
-        predicted: isDeepfake ? 'deepfake' : 'real',
-        confidence: parseFloat(confidence),
-        scores: scores
-    };
-    actualLabel = null;
-    
-    // Show verification section
-    const verificationSection = document.getElementById('verificationSection');
-    const feedbackForm = document.getElementById('feedbackForm');
-    const feedbackSuccess = document.getElementById('feedbackSuccess');
-    verificationSection.style.display = 'block';
-    feedbackForm.style.display = 'none';
-    feedbackSuccess.style.display = 'none';
-    
-    analysisResult.style.display = 'block';
-    
-    // Load verification stats
-    loadVerificationStats();
+    const now = new Date();
+    timestamp.textContent = now.toLocaleString();
+
+    // Reset feedback message
+    feedbackMessage.style.display = 'none';
+    correctBtn.disabled = false;
+    incorrectBtn.disabled = false;
 }
 
-// API Status and Info
-async function checkApiStatus() {
+// Feedback
+async function submitFeedback(isCorrect) {
+    if (!selectedFile) return;
+
+    const button = isCorrect ? correctBtn : incorrectBtn;
+    button.disabled = true;
+
     try {
-        const response = await fetch('/health', { method: 'GET' });
-        const data = await response.json();
-        
+        const response = await fetch('/api/feedback', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                filename: selectedFile.name,
+                file_size: selectedFile.size,
+                user_feedback: isCorrect
+            })
+        });
+
         if (response.ok) {
-            statusDot.classList.add('online');
-            statusText.textContent = 'System Online';
-            statusText.style.color = '#10b981';
+            // Show success message
+            feedbackMessage.style.display = 'block';
+            feedbackMessage.textContent = isCorrect 
+                ? '✓ Thank you! Your feedback helps improve our system.' 
+                : '✓ Thank you! Your feedback helps improve our system.';
             
-            document.getElementById('apiStatus').textContent = 
-                `✅ ${data.status}`;
-            document.getElementById('modelStatus').textContent = 
-                data.model_loaded ? '✅ Loaded' : '❌ Not Loaded';
+            correctBtn.disabled = true;
+            incorrectBtn.disabled = true;
         } else {
-            throw new Error('API offline');
+            throw new Error('Failed to submit feedback');
         }
     } catch (error) {
-        statusDot.classList.remove('online');
-        statusText.textContent = 'System Offline';
-        statusText.style.color = '#ef4444';
-        document.getElementById('apiStatus').textContent = '❌ Offline';
+        console.error('Error submitting feedback:', error);
+        feedbackMessage.style.display = 'block';
+        feedbackMessage.textContent = '❌ Failed to submit feedback. Please try again.';
+        feedbackMessage.style.borderLeftColor = '#ef4444';
+        feedbackMessage.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+        feedbackMessage.style.color = '#ef4444';
     }
 }
 
-async function loadSystemInfo() {
+// Reset UI
+function resetUI() {
+    removeFile();
+    resultsSection.style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Check System Status
+async function checkSystemStatus() {
     try {
-        const response = await fetch('/info', { method: 'GET' });
-        const data = await response.json();
-        
-        document.getElementById('supportedFormats').textContent = 
-            data.supported_formats.join(', ').toUpperCase();
-        document.getElementById('maxFileSize').textContent = 
-            data.max_file_size_mb + ' MB';
-            
+        const response = await fetch('/health');
+        if (!response.ok) {
+            console.warn('System health check failed');
+        }
     } catch (error) {
-        console.error('Error loading system info:', error);
+        console.error('Could not reach API:', error);
     }
 }
 
-// Utility Functions
-function showError(message) {
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error-message';
-    errorDiv.textContent = '❌ ' + message;
-    
-    const resultsSection = document.getElementById('resultsSection');
-    if (resultsSection.style.display !== 'none') {
-        resultsSection.appendChild(errorDiv);
-    } else {
-        uploadArea.parentElement.appendChild(errorDiv);
+// Keyboard Support
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && selectedFile && fileInfo.style.display === 'block') {
+        analyzeFile();
     }
-    
-    setTimeout(() => errorDiv.remove(), 5000);
-}
-
-function showSuccess(message) {
-    const successDiv = document.createElement('div');
-    successDiv.className = 'success-message';
-    successDiv.textContent = '✅ ' + message;
-    
-    document.querySelector('.main-content').appendChild(successDiv);
-    setTimeout(() => successDiv.remove(), 3000);
-}
-
-// Verification Functions
-function submitFeedback(isCorrect) {
-    const verificationSection = document.getElementById('verificationSection');
-    const feedbackForm = document.getElementById('feedbackForm');
-    const feedbackSuccess = document.getElementById('feedbackSuccess');
-    
-    if (isCorrect) {
-        // Correct prediction - submit immediately
-        saveFeedback(true, null, '');
-    } else {
-        // Incorrect - show form to get actual label
-        feedbackForm.style.display = 'block';
-    }
-}
-
-function setActualLabel(label) {
-    actualLabel = label;
-    const actualReal = document.getElementById('actualReal');
-    const actualFake = document.getElementById('actualFake');
-    
-    actualReal.style.opacity = label === 'real' ? '1' : '0.5';
-    actualFake.style.opacity = label === 'deepfake' ? '1' : '0.5';
-}
-
-function submitFinalFeedback() {
-    if (!actualLabel) {
-        showError('Please select the actual label');
-        return;
-    }
-    
-    const comment = document.getElementById('feedbackComment').value;
-    saveFeedback(false, actualLabel, comment);
-}
-
-function saveFeedback(isCorrect, actualLabel, comment) {
-    if (!currentResult) {
-        showError('No result to verify');
-        return;
-    }
-    
-    const feedback = {
-        file_name: currentResult.fileName,
-        predicted_label: currentResult.predicted,
-        actual_label: actualLabel || currentResult.predicted,
-        confidence: currentResult.confidence,
-        is_correct: isCorrect,
-        user_comment: comment
-    };
-    
-    fetch('/api/feedback', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(feedback)
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Feedback submission failed');
-        return response.json();
-    })
-    .then(data => {
-        // Show success message
-        const feedbackForm = document.getElementById('feedbackForm');
-        const feedbackSuccess = document.getElementById('feedbackSuccess');
-        feedbackForm.style.display = 'none';
-        feedbackSuccess.style.display = 'block';
-        
-        setTimeout(() => {
-            feedbackSuccess.style.display = 'none';
-            loadVerificationStats();
-        }, 2000);
-    })
-    .catch(error => {
-        showError('Error submitting feedback: ' + error.message);
-    });
-}
-
-function loadVerificationStats() {
-    fetch('/api/feedback/stats')
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('totalFeedback').textContent = data.total_feedback;
-            document.getElementById('correctPredictions').textContent = data.correct_predictions;
-            document.getElementById('incorrectPredictions').textContent = data.incorrect_predictions;
-            document.getElementById('feedbackAccuracy').textContent = data.accuracy + '%';
-            
-            if (data.total_feedback > 0) {
-                document.getElementById('verificationStatsSection').style.display = 'block';
-            }
-        })
-        .catch(error => console.error('Error loading stats:', error));
-}
-
-// Auto-refresh status every 30 seconds
-setInterval(checkApiStatus, 30000);
+});
