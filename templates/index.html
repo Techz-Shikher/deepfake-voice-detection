@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deepfake Voice Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>🎤 Deepfake Voice Detection</h1>
+                <p>AI-powered detection system to identify synthetic and deepfake audio</p>
+            </div>
+            <div class="status-indicator">
+                <span id="status-dot" class="status-dot"></span>
+                <span id="status-text">Checking...</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Detection Section -->
+            <section class="section detection-section">
+                <h2>📁 Upload & Analyze</h2>
+                
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📤</div>
+                    <h3>Drag and drop audio files here</h3>
+                    <p>or click to browse</p>
+                    <input type="file" id="fileInput" accept="audio/*" multiple hidden>
+                </div>
+
+                <div class="file-list" id="fileList" style="display: none;">
+                    <h3>Files to analyze:</h3>
+                    <ul id="selectedFiles"></ul>
+                    <button class="btn btn-primary" id="analyzeBtn">Analyze Files</button>
+                    <button class="btn btn-secondary" id="clearBtn">Clear</button>
+                </div>
+
+                <div id="analyzeProgress" style="display: none;">
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                    <p id="progressText">0/0 processed</p>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="section results-section" id="resultsSection" style="display: none;">
+                <h2>📊 Analysis Results</h2>
+                
+                <div id="resultsList" class="results-list">
+                    <!-- Results will be dynamically added here -->
+                </div>
+
+                <div class="summary-stats">
+                    <div class="stat">
+                        <span class="stat-label">Total Files</span>
+                        <span class="stat-value" id="totalFiles">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Deepfakes Detected</span>
+                        <span class="stat-value" id="deepfakesDetected">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Real Audio</span>
+                        <span class="stat-value" id="realAudio">0</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Single File Analysis -->
+            <section class="section analysis-section">
+                <h2>🎵 Real-time Analysis</h2>
+                <div class="analysis-form">
+                    <input type="file" id="singleFile" accept="audio/*" class="file-input">
+                    <button class="btn btn-primary" id="analyzeBtn2">Analyze</button>
+                </div>
+                
+                <div id="analysisResult" class="analysis-result" style="display: none;">
+                    <div class="result-box">
+                        <h3>Detection Result</h3>
+                        <div class="result-content">
+                            <div id="resultIcon" class="result-icon">🔍</div>
+                            <div class="result-details">
+                                <p><strong>Classification:</strong> <span id="classification">-</span></p>
+                                <p><strong>Confidence:</strong> <span id="confidence">-</span></p>
+                                <p><strong>File:</strong> <span id="fileName">-</span></p>
+                            </div>
+                        </div>
+                        <div class="confidence-bar">
+                            <div id="confidenceFill" class="confidence-fill"></div>
+                        </div>
+                        <p class="confidence-text" id="confidenceText">-</p>
+                    </div>
+                    
+                    <!-- Verification Section -->
+                    <div class="verification-section" id="verificationSection" style="display: none;">
+                        <h4>✓ Verify this result</h4>
+                        <p>Is this prediction correct?</p>
+                        <div class="verification-buttons">
+                            <button class="btn btn-success" id="correctBtn" onclick="submitFeedback(true)">✅ Correct</button>
+                            <button class="btn btn-danger" id="incorrectBtn" onclick="submitFeedback(false)">❌ Incorrect</button>
+                        </div>
+                        <div id="feedbackForm" style="display: none; margin-top: 15px;">
+                            <p><strong>If incorrect, what is the actual label?</strong></p>
+                            <div class="label-selection">
+                                <button class="btn btn-small" id="actualReal" onclick="setActualLabel('real')">Real Voice</button>
+                                <button class="btn btn-small" id="actualFake" onclick="setActualLabel('deepfake')">Deepfake</button>
+                            </div>
+                            <textarea id="feedbackComment" placeholder="Optional: Add a comment..." class="feedback-input"></textarea>
+                            <button class="btn btn-primary" id="submitFeedbackBtn" onclick="submitFinalFeedback()">Submit Feedback</button>
+                        </div>
+                        <div id="feedbackSuccess" style="display: none;" class="success-message">
+                            ✅ Thank you! Your feedback helps improve the model.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Verification Stats Section -->
+            <section class="section verification-stats-section" id="verificationStatsSection" style="display: none;">
+                <h2>📈 Verification Statistics</h2>
+                <div class="verification-stats">
+                    <div class="stat-card">
+                        <h4>Total Feedback</h4>
+                        <p class="stat-number" id="totalFeedback">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Correct Predictions</h4>
+                        <p class="stat-number" id="correctPredictions">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Incorrect Predictions</h4>
+                        <p class="stat-number" id="incorrectPredictions">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Model Accuracy</h4>
+                        <p class="stat-number" id="feedbackAccuracy">0%</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- System Stats -->
+            <section class="section stats-section">
+                <h2>ℹ️ System Information</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>API Status</h4>
+                        <p id="apiStatus">Loading...</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Model Status</h4>
+                        <p id="modelStatus">Loading...</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Supported Formats</h4>
+                        <p id="supportedFormats">Loading...</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Max File Size</h4>
+                        <p id="maxFileSize">Loading...</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Deepfake Voice Detection | Powered by AI 🤖 | v1.0.0</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
