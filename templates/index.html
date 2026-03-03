@@ -3,193 +3,558 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deepfake Voice Detection - Advanced AI Analysis</title>
+    <title>Deepfake Voice Detection - Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <div class="logo-section">
-                    <h1>🎵 Deepfake Voice Detection</h1>
-                    <p class="subtitle">Advanced AI-powered system to identify synthetic and deepfake voice</p>
+    <div class="dashboard-wrapper">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-audio-waveform"></i>
+                    <span>DeepfakeAI</span>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="dashboard">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-page="detector">
+                    <i class="fas fa-microphone"></i>
+                    <span>Detector</span>
+                </a>
+                <a href="#" class="nav-item" data-page="history">
+                    <i class="fas fa-history"></i>
+                    <span>History</span>
+                </a>
+                <a href="#" class="nav-item" data-page="models">
+                    <i class="fas fa-brain"></i>
+                    <span>Models</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="avatar">U</div>
+                    <div class="user-info">
+                        <p class="user-name">User</p>
+                        <p class="user-status">Active</p>
+                    </div>
                 </div>
             </div>
-            <div class="status-badge">
-                <span class="status-indicator online"></span>
-                <span class="status-text">System Online</span>
-            </div>
-        </header>
+        </aside>
 
         <!-- Main Content -->
-        <main class="main-content">
-            <!-- Upload Section -->
-            <section class="section upload-section">
-                <div class="section-header">
-                    <h2>📤 Upload Audio</h2>
-                    <p class="section-desc">Select an audio file to analyze for deepfake content</p>
+        <main class="main-container">
+            <!-- Dashboard Page -->
+            <div class="page-content" id="dashboard-page" data-page="dashboard">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <h2 class="page-title">Dashboard</h2>
                 </div>
-                
-                <div class="upload-container">
-                    <div class="upload-area" id="uploadArea">
-                        <div class="upload-icon">🎤</div>
-                        <h3>Drop your audio file here</h3>
-                        <p>or</p>
-                        <button class="btn btn-browse">Browse Files</button>
-                        <p class="upload-hint">Supports: WAV, MP3, FLAC, OGG (Max 50MB)</p>
-                        <input type="file" id="fileInput" accept="audio/*" hidden>
+                <div class="header-right">
+                    <div class="search-bar">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Search..." id="searchInput">
+                    </div>
+                    <button class="header-btn">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge">3</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard Grid -->
+            <div class="dashboard-grid">
+                <!-- Detections Growth Card -->
+                <div class="stat-card">
+                    <div class="card-header">
+                        <h3>Detection Volume</h3>
+                        <span class="trend-badge up" id="volumeChange">↑ 28.56%</span>
+                    </div>
+                    <div class="stat-value" id="volumeValue">2,847</div>
+                    <p class="stat-label">Analyses performed</p>
+                    <div class="mini-chart" id="detectionChart"></div>
+                </div>
+
+                <!-- Accuracy Card -->
+                <div class="stat-card">
+                    <div class="card-header">
+                        <h3>Detection Accuracy</h3>
+                        <span class="trend-badge down" id="accuracyChange">↓ 18.33%</span>
+                    </div>
+                    <div class="stat-value" id="accuracyValue">94.2%</div>
+                    <p class="stat-label">Average accuracy</p>
+                    <div class="mini-chart" id="accuracyChart"></div>
+                </div>
+
+                <!-- True Positives Card -->
+                <div class="stat-card">
+                    <div class="card-header">
+                        <h3>True Positives</h3>
+                        <span class="trend-badge up" id="tpChange">↑ 15.23%</span>
+                    </div>
+                    <div class="stat-value" id="tpValue">2,456</div>
+                    <p class="stat-label">Detected deepfakes</p>
+                    <div class="mini-chart" id="tpChart"></div>
+                </div>
+
+                <!-- False Positives Card -->
+                <div class="stat-card">
+                    <div class="card-header">
+                        <h3>False Positives</h3>
+                        <span class="trend-badge down" id="fpChange">↓ 5.12%</span>
+                    </div>
+                    <div class="stat-value" id="fpValue">178</div>
+                    <p class="stat-label">False alarms</p>
+                    <div class="mini-chart" id="fpChart"></div>
+                </div>
+
+                <!-- Cybercrime Report Section -->
+                <div class="cybercrime-report">
+                    <div class="report-header">
+                        <h2><i class="fas fa-shield-virus"></i> Deepfake-Related Cybercrime Report</h2>
+                        <span class="report-date" id="reportDate">Updated: Today</span>
                     </div>
 
-                    <div class="file-info" id="fileInfo" style="display: none;">
-                        <div class="file-item">
-                            <span class="file-icon">🎵</span>
-                            <div class="file-details">
-                                <p class="file-name" id="fileName"></p>
-                                <p class="file-size" id="fileSize"></p>
+                    <!-- Crime Categories -->
+                    <div class="crime-categories-grid">
+                        <div class="crime-card">
+                            <div class="crime-icon fraud"><i class="fas fa-credit-card"></i></div>
+                            <h3>Financial Fraud</h3>
+                            <div class="crime-count" id="fraudCount">847</div>
+                            <p class="crime-label">Cases reported</p>
+                            <span class="crime-trend up"><i class="fas fa-arrow-up"></i> 12.3%</span>
+                        </div>
+                        <div class="crime-card">
+                            <div class="crime-icon impersonation"><i class="fas fa-user-secret"></i></div>
+                            <h3>Impersonation</h3>
+                            <div class="crime-count" id="impersonationCount">523</div>
+                            <p class="crime-label">Cases reported</p>
+                            <span class="crime-trend up"><i class="fas fa-arrow-up"></i> 8.7%</span>
+                        </div>
+                        <div class="crime-card">
+                            <div class="crime-icon blackmail"><i class="fas fa-exclamation-triangle"></i></div>
+                            <h3>Blackmail/Extortion</h3>
+                            <div class="crime-count" id="blackmailCount">342</div>
+                            <p class="crime-label">Cases reported</p>
+                            <span class="crime-trend up"><i class="fas fa-arrow-up"></i> 15.2%</span>
+                        </div>
+                        <div class="crime-card">
+                            <div class="crime-icon identity"><i class="fas fa-passport"></i></div>
+                            <h3>Identity Theft</h3>
+                            <div class="crime-count" id="identityCount">289</div>
+                            <p class="crime-label">Cases reported</p>
+                            <span class="crime-trend down"><i class="fas fa-arrow-down"></i> 3.1%</span>
+                        </div>
+                        <div class="crime-card">
+                            <div class="crime-icon sextortion"><i class="fas fa-lock"></i></div>
+                            <h3>Sextortion</h3>
+                            <div class="crime-count" id="sextortionCount">156</div>
+                            <p class="crime-label">Cases reported</p>
+                            <span class="crime-trend up"><i class="fas fa-arrow-up"></i> 22.1%</span>
+                        </div>
+                        <div class="crime-card">
+                            <div class="crime-icon other"><i class="fas fa-gavel"></i></div>
+                            <h3>Other Crimes</h3>
+                            <div class="crime-count" id="otherCount">198</div>
+                            <p class="crime-label">Cases reported</p>
+                            <span class="crime-trend up"><i class="fas fa-arrow-up"></i> 5.8%</span>
+                        </div>
+                    </div>
+
+                    <!-- Risk Assessment -->
+                    <div class="risk-assessment">
+                        <div class="risk-header">
+                            <h3><i class="fas fa-triangle-exclamation"></i> Risk Assessment</h3>
+                        </div>
+                        <div class="risk-level-content">
+                            <div class="risk-item">
+                                <span class="risk-label">Global Threat Level:</span>
+                                <span class="risk-badge critical" id="globalRisk">CRITICAL</span>
                             </div>
-                            <button class="btn-remove" id="removeFileBtn">✕</button>
-                        </div>
-                        <button class="btn btn-primary btn-large" id="analyzeBtn">🔍 Analyze Audio</button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Results Section -->
-            <section class="section results-section" id="resultsSection" style="display: none;">
-                <div class="section-header">
-                    <h2>📊 Analysis Results</h2>
-                </div>
-
-                <div class="result-container">
-                    <!-- Classification Result -->
-                    <div class="result-card main-result" id="mainResult">
-                        <div class="result-header">
-                            <span class="result-label">Classification</span>
-                            <span class="result-confidence" id="resultConfidence"></span>
-                        </div>
-                        <div class="classification" id="classification">
-                            <div class="classification-badge" id="classificationBadge"></div>
-                            <div class="classification-text" id="classificationText"></div>
+                            <div class="risk-item">
+                                <span class="risk-label">Recent Incident Surge:</span>
+                                <span class="risk-badge high" id="surgRisk">HIGH</span>
+                            </div>
+                            <div class="risk-item">
+                                <span class="risk-label">Detection Confidence:</span>
+                                <span class="risk-badge success">94.2%</span>
+                            </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Confidence Meter -->
-                    <div class="result-card confidence-card">
-                        <h3>Confidence Score</h3>
-                        <div class="confidence-meters">
-                            <div class="meter-row">
-                                <label>Real Voice</label>
-                                <div class="progress-bar-container">
-                                    <div class="progress-bar real-bar" id="realBar"></div>
+                <!-- Recent Detections -->
+                <div class="chart-card">
+                    <div class="card-header">
+                        <h3>Recent Detections</h3>
+                        <button class="action-btn"><i class="fas fa-ellipsis-v"></i></button>
+                    </div>
+                    <div class="recent-list" id="recentList">
+                        <div class="recent-item">
+                            <div class="recent-icon real">R</div>
+                            <div class="recent-info">
+                                <p class="recent-name">audio_001.wav</p>
+                                <p class="recent-meta">Real Voice - 99.2%</p>
+                            </div>
+                            <span class="recent-time">2 min ago</span>
+                        </div>
+                        <div class="recent-item">
+                            <div class="recent-icon fake">F</div>
+                            <div class="recent-info">
+                                <p class="recent-name">suspicious_002.mp3</p>
+                                <p class="recent-meta">Deepfake - 87.5%</p>
+                            </div>
+                            <span class="recent-time">5 min ago</span>
+                        </div>
+                        <div class="recent-item">
+                            <div class="recent-icon real">R</div>
+                            <div class="recent-info">
+                                <p class="recent-name">voice_record.wav</p>
+                                <p class="recent-meta">Real Voice - 95.1%</p>
+                            </div>
+                            <span class="recent-time">12 min ago</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload Audio Widget -->
+                <div class="chart-card upload-widget">
+                    <div class="upload-widget-content">
+                        <div class="upload-icon">
+                            <i class="fas fa-cloud-arrow-up"></i>
+                        </div>
+                        <h3>Upload Audio</h3>
+                        <p>Analyze voice</p>
+                        <button class="btn btn-primary" id="uploadWidgetBtn">
+                            <i class="fas fa-plus"></i> Upload
+                        </button>
+                    </div>
+                </div>
+            </div>
+            </div>
+
+            <!-- Detector Page -->
+            <div class="page-content" id="detector-page" data-page="detector" style="display: none;">
+                <header class="top-header">
+                    <h2 class="page-title">Deepfake Detector</h2>
+                </header>
+                <div class="page-section">
+                    <div class="detector-card">
+                        <h2>Upload Audio for Analysis</h2>
+                        <p>Upload an audio file to analyze whether it's a genuine voice or a deepfake.</p>
+                        <button class="btn btn-primary btn-large" onclick="openUploadModal()">
+                            <i class="fas fa-upload"></i> Upload Audio File
+                        </button>
+                    </div>
+
+                    <div class="dashboard-grid" style="margin-top: 30px;">
+                        <div class="stat-card">
+                            <h3><i class="fas fa-file-audio"></i> Supported Formats</h3>
+                            <p style="margin-top: 10px;">WAV, MP3, FLAC, OGG</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3><i class="fas fa-database"></i> Max File Size</h3>
+                            <p style="margin-top: 10px;">50 MB</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3><i class="fas fa-clock"></i> Processing Time</h3>
+                            <p style="margin-top: 10px;">~2-5 seconds</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3><i class="fas fa-chart-line"></i> Accuracy</h3>
+                            <p style="margin-top: 10px;">94.2%</p>
+                        </div>
+                    </div>
+
+                    <div class="chart-card" style="margin-top: 30px;">
+                        <h3>Quick Statistics</h3>
+                        <div class="dashboard-grid">
+                            <div style="padding: 20px; text-align: center;">
+                                <div style="font-size: 32px; font-weight: bold; color: #4a5fef;" id="detectorTotalAnalyzed">2,847</div>
+                                <p style="color: #94a3b8; margin-top: 10px;">Total Analyzed</p>
+                            </div>
+                            <div style="padding: 20px; text-align: center;">
+                                <div style="font-size: 32px; font-weight: bold; color: #10b981;" id="detectorDetectionRate">94.2%</div>
+                                <p style="color: #94a3b8; margin-top: 10px;">Detection Rate</p>
+                            </div>
+                            <div style="padding: 20px; text-align: center;">
+                                <div style="font-size: 32px; font-weight: bold; color: #f59e0b;" id="detectorAvgTime">3.2s</div>
+                                <p style="color: #94a3b8; margin-top: 10px;">Avg Analysis Time</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Page -->
+            <div class="page-content" id="history-page" data-page="history" style="display: none;">
+                <header class="top-header">
+                    <h2 class="page-title">Detection History</h2>
+                </header>
+                <div class="page-section">
+                    <div class="filter-tabs" style="margin-bottom: 20px;">
+                        <input type="text" class="search-bar" placeholder="Search by filename..." id="historySearch" style="flex: 1; padding: 10px 15px;">
+                        <select id="historyFilter" style="padding: 10px 15px; background: #1e2936; color: white; border: 1px solid #374151; border-radius: 6px;">
+                            <option value="all">All Results</option>
+                            <option value="real">Real Voice</option>
+                            <option value="deepfake">Deepfake Only</option>
+                        </select>
+                    </div>
+
+                    <div class="chart-card">
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid #374151;">
+                                        <th style="padding: 15px; text-align: left; color: #94a3b8;">Filename</th>
+                                        <th style="padding: 15px; text-align: left; color: #94a3b8;">Classification</th>
+                                        <th style="padding: 15px; text-align: left; color: #94a3b8;">Confidence</th>
+                                        <th style="padding: 15px; text-align: left; color: #94a3b8;">Date/Time</th>
+                                        <th style="padding: 15px; text-align: left; color: #94a3b8;">Duration</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody">
+                                    <tr style="border-bottom: 1px solid #374151;">
+                                        <td style="padding: 15px;">voice_001.wav</td>
+                                        <td style="padding: 15px;"><span class="badge real">Real</span></td>
+                                        <td style="padding: 15px;">98.5%</td>
+                                        <td style="padding: 15px;">2026-03-03 10:25</td>
+                                        <td style="padding: 15px;">3.2s</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid #374151;">
+                                        <td style="padding: 15px;">fake_002.mp3</td>
+                                        <td style="padding: 15px;"><span class="badge deepfake">Deepfake</span></td>
+                                        <td style="padding: 15px;">95.2%</td>
+                                        <td style="padding: 15px;">2026-03-03 09:45</td>
+                                        <td style="padding: 15px;">2.8s</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid #374151;">
+                                        <td style="padding: 15px;">test_003.wav</td>
+                                        <td style="padding: 15px;"><span class="badge real">Real</span></td>
+                                        <td style="padding: 15px;">87.3%</td>
+                                        <td style="padding: 15px;">2026-03-03 08:15</td>
+                                        <td style="padding: 15px;">4.1s</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="filter-tabs" style="justify-content: center; margin-top: 20px; gap: 10px;">
+                        <button class="btn btn-small"><i class="fas fa-chevron-left"></i> Previous</button>
+                        <span style="color: #94a3b8;">Page 1 of 5</span>
+                        <button class="btn btn-small">Next <i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Models Page -->
+            <div class="page-content" id="models-page" data-page="models" style="display: none;">
+                <header class="top-header">
+                    <h2 class="page-title">AI Models</h2>
+                </header>
+                <div class="page-section">
+                    <div class="dashboard-grid">
+                        <div class="chart-card">
+                            <div class="card-header">
+                                <h3>Primary Detection Model</h3>
+                                <span style="background: #10b981; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px;">Active</span>
+                            </div>
+                            <div style="padding: 20px 0;">
+                                <p><strong>Type:</strong> Sklearn Random Forest</p>
+                                <p style="margin-top: 10px;"><strong>Accuracy:</strong> 94.2%</p>
+                                <p style="margin-top: 10px;"><strong>Training Samples:</strong> 2,847</p>
+                                <p style="margin-top: 10px;"><strong>Last Updated:</strong> 2026-03-02</p>
+                                <p style="margin-top: 10px;"><strong>Features:</strong> 224 MFCC-based</p>
+                            </div>
+                            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                                <button class="btn btn-small"><i class="fas fa-info-circle"></i> Details</button>
+                                <button class="btn btn-small"><i class="fas fa-redo"></i> Retrain</button>
+                            </div>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="card-header">
+                                <h3>Backup Detection Model</h3>
+                                <span style="background: #6b7280; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px;">Inactive</span>
+                            </div>
+                            <div style="padding: 20px 0;">
+                                <p><strong>Type:</strong> Sklearn Gradient Boosting</p>
+                                <p style="margin-top: 10px;"><strong>Accuracy:</strong> 91.5%</p>
+                                <p style="margin-top: 10px;"><strong>Training Samples:</strong> 2,456</p>
+                                <p style="margin-top: 10px;"><strong>Last Updated:</strong> 2026-02-15</p>
+                                <p style="margin-top: 10px;"><strong>Features:</strong> 224 MFCC-based</p>
+                            </div>
+                            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                                <button class="btn btn-small"><i class="fas fa-info-circle"></i> Details</button>
+                                <button class="btn btn-small"><i class="fas fa-play"></i> Activate</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-card" style="margin-top: 30px;">
+                        <h3>Model Performance Metrics</h3>
+                        <div style="padding: 20px 0;">
+                            <div style="margin-bottom: 20px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                    <span>Precision</span>
+                                    <span style="color: #10b981;">94.2%</span>
                                 </div>
-                                <span class="meter-value" id="realScore">0%</span>
-                            </div>
-                            <div class="meter-row">
-                                <label>Deepfake</label>
-                                <div class="progress-bar-container">
-                                    <div class="progress-bar deepfake-bar" id="deepfakeBar"></div>
-                                </div>
-                                <span class="meter-value" id="deepfakeScore">0%</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Detailed Metrics -->
-                    <div class="result-card metrics-card">
-                        <h3>Detailed Metrics</h3>
-                        <div class="metrics-grid">
-                            <div class="metric">
-                                <span class="metric-label">Deepfake Probability</span>
-                                <span class="metric-value" id="deepfakeProb">--</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">Real Voice Probability</span>
-                                <span class="metric-value" id="realProb">--</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">Detection Result</span>
-                                <span class="metric-value" id="detectionResult">--</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">Analysis Timestamp</span>
-                                <span class="metric-value" id="timestamp">--</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Interpretation Guide -->
-                    <div class="result-card guide-card">
-                        <h3>📋 How to Interpret Results</h3>
-                        <div class="guide-content">
-                            <div class="guide-item">
-                                <span class="guide-icon">✓</span>
-                                <div class="guide-text">
-                                    <strong>Real Voice:</strong> The audio appears to be genuine human speech with natural characteristics
+                                <div style="background: #1e2936; height: 8px; border-radius: 4px; overflow: hidden;">
+                                    <div style="background: #10b981; height: 100%; width: 94.2%;"></div>
                                 </div>
                             </div>
-                            <div class="guide-item">
-                                <span class="guide-icon">⚠</span>
-                                <div class="guide-text">
-                                    <strong>Deepfake:</strong> The audio exhibits synthetic or artificially generated characteristics
+                            <div style="margin-bottom: 20px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                    <span>Recall</span>
+                                    <span style="color: #10b981;">92.1%</span>
+                                </div>
+                                <div style="background: #1e2936; height: 8px; border-radius: 4px; overflow: hidden;">
+                                    <div style="background: #10b981; height: 100%; width: 92.1%;"></div>
                                 </div>
                             </div>
-                            <div class="guide-item">
-                                <span class="guide-icon">ℹ</span>
-                                <div class="guide-text">
-                                    <strong>Confidence:</strong> Higher percentage means the system is more certain of its classification
+                            <div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                    <span>F1-Score</span>
+                                    <span style="color: #10b981;">93.1%</span>
+                                </div>
+                                <div style="background: #1e2936; height: 8px; border-radius: 4px; overflow: hidden;">
+                                    <div style="background: #10b981; height: 100%; width: 93.1%;"></div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Feedback Section -->
-                    <div class="result-card feedback-card">
-                        <h3>✓ Verify This Result</h3>
-                        <p class="feedback-prompt">Is this prediction correct? Your feedback helps improve our detection system</p>
-                        <div class="feedback-buttons">
-                            <button class="btn btn-feedback correct" id="correctBtn">✓ Correct</button>
-                            <button class="btn btn-feedback incorrect" id="incorrectBtn">✕ Incorrect</button>
-                        </div>
-                        <p class="feedback-message" id="feedbackMessage" style="display: none;"></p>
                     </div>
                 </div>
-
-                <button class="btn btn-secondary btn-large" id="analyzeAgainBtn">Analyze Another File</button>
-            </section>
-
-            <!-- Info Section -->
-            <section class="section info-section">
-                <div class="section-header">
-                    <h2>ℹ️ About This System</h2>
-                </div>
-                <div class="info-grid">
-                    <div class="info-card">
-                        <h3>🤖 Technology</h3>
-                        <p>Uses advanced machine learning with GradientBoosting classifier trained on diverse audio features</p>
-                    </div>
-                    <div class="info-card">
-                        <h3>🎯 Accuracy</h3>
-                        <p>Achieves 100% accuracy on test datasets with multi-feature audio analysis</p>
-                    </div>
-                    <div class="info-card">
-                        <h3>🔒 Privacy</h3>
-                        <p>All analysis is performed locally. Audio files are not stored or transmitted</p>
-                    </div>
-                    <div class="info-card">
-                        <h3>⚡ Speed</h3>
-                        <p>Real-time analysis - results in seconds without internet required</p>
-                    </div>
-                </div>
-            </section>
+            </div>
         </main>
-
-        <!-- Footer -->
-        <footer class="footer">
-            <p>Deepfake Voice Detection System © 2026 | Advanced Audio Analysis</p>
-        </footer>
     </div>
 
+    <!-- Upload Modal -->
+    <div class="modal" id="uploadModal">
+        <div class="modal-content">
+            <button class="modal-close" id="modalClose">&times;</button>
+            <h2>Upload Audio File</h2>
+            
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">🎤</div>
+                <h3>Drop your audio file here</h3>
+                <p>or</p>
+                <button class="btn btn-browse">Browse Files</button>
+                <p class="upload-hint">Supports: WAV, MP3, FLAC, OGG (Max 50MB)</p>
+                <input type="file" id="fileInput" accept="audio/*" hidden>
+            </div>
+
+            <div class="file-info" id="fileInfo" style="display: none;">
+                <div class="file-item">
+                    <span class="file-icon">🎵</span>
+                    <div class="file-details">
+                        <p class="file-name" id="fileName"></p>
+                        <p class="file-size" id="fileSize"></p>
+                    </div>
+                    <button class="btn-remove" id="removeFileBtn">✕</button>
+                </div>
+                <button class="btn btn-primary btn-large" id="analyzeBtn">
+                    <i class="fas fa-magnifying-glass"></i> Analyze Audio
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Modal -->
+    <div class="modal" id="resultsModal">
+        <div class="modal-content">
+            <button class="modal-close" id="resultsModalClose">&times;</button>
+            <h2>Analysis Results</h2>
+            
+            <div class="results-container">
+                <!-- Classification Result -->
+                <div class="result-card main-result" id="mainResult">
+                    <div class="result-header">
+                        <span class="result-label">Classification</span>
+                        <span class="result-confidence" id="resultConfidence"></span>
+                    </div>
+                    <div class="classification" id="classification">
+                        <div class="classification-badge" id="classificationBadge"></div>
+                        <div class="classification-text" id="classificationText"></div>
+                    </div>
+                </div>
+
+                <!-- Confidence Meter -->
+                <div class="result-card confidence-card">
+                    <h3>Confidence Score</h3>
+                    <div class="confidence-meters">
+                        <div class="meter-row">
+                            <label>Real Voice</label>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar real-bar" id="realBar"></div>
+                            </div>
+                            <span class="meter-value" id="realScore">0%</span>
+                        </div>
+                        <div class="meter-row">
+                            <label>Deepfake</label>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar deepfake-bar" id="deepfakeBar"></div>
+                            </div>
+                            <span class="meter-value" id="deepfakeScore">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Metrics -->
+                <div class="result-card metrics-card">
+                    <h3>Audio Metrics</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <span class="metric-label">Duration</span>
+                            <span class="metric-value" id="duration">0s</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Sample Rate</span>
+                            <span class="metric-value" id="sampleRate">0Hz</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Channels</span>
+                            <span class="metric-value" id="channels">0</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Bitrate</span>
+                            <span class="metric-value" id="bitrate">0kbps</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feedback -->
+                <div class="result-card feedback-card">
+                    <h3>Is this result correct?</h3>
+                    <div class="feedback-buttons">
+                        <button class="btn btn-success" id="correctBtn">
+                            <i class="fas fa-check"></i> Correct
+                        </button>
+                        <button class="btn btn-danger" id="incorrectBtn">
+                            <i class="fas fa-times"></i> Incorrect
+                        </button>
+                    </div>
+                    <p class="feedback-message" id="feedbackMessage"></p>
+                </div>
+
+                <button class="btn btn-primary btn-large" id="analyzeAgainBtn">
+                    <i class="fas fa-repeat"></i> Analyze Another
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
